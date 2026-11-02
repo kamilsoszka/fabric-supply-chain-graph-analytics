@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "GraphModel",
+    "displayName": "SupplyChainGraph"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "7e0417bd-0a1f-ba9e-40d7-7eaf48231e00"
+  }
+}

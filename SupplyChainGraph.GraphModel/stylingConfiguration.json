@@ -1,0 +1,48 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/graphIndex/definition/stylingConfiguration/1.0.0/schema.json",
+  "modelLayout": {
+    "layoutType": "Preset",
+    "positions": {
+      "64a79e92-096b-47d8-8e92-3d836e2b260c": {
+        "x": 191.30244,
+        "y": 89.35547
+      },
+      "b86ce9f2-e604-423f-8d66-20f094ba6e28": {
+        "x": 140.4841,
+        "y": 25.242561
+      },
+      "cd6ef2ca-f0a4-4937-ad3f-788f37511da0": {
+        "x": 70.69081,
+        "y": 65.022156
+      },
+      "7bab01c4-0f50-4182-94f1-c423c526b2b6": {
+        "x": 338.50882,
+        "y": 114.85611
+      },
+      "62a4851a-26d9-4298-bf79-573eb2f8a86f": {
+        "x": 208.72893,
+        "y": 143.3373
+      },
+      "e24918ec-c5c8-45fc-bc7e-36fc21da7909": {
+        "x": 81.76816,
+        "y": 160.7897
+      },
+      "b7bd5a4a-74d8-47e4-a8be-ade2869e39b8": {
+        "x": 156.5734,
+        "y": -26.238956
+      },
+      "4db06b5d-031f-4f2d-a2d1-c0e263a6e492": {
+        "x": 231.22588,
+        "y": 25.236326
+      }
+    },
+    "styles": {},
+    "pan": {
+      "x": 74.68269,
+      "y": 110.5879
+    },
+    "zoomLevel": 1.9905359
+  },
+  "visualFormat": {},
+  "scenario": "GraphClient"
+}

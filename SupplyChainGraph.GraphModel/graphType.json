@@ -1,0 +1,427 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/graphIndex/definition/graphType/1.0.0/schema.json",
+  "nodeTypes": [
+    {
+      "primaryKeyProperties": [
+        "customerIDK"
+      ],
+      "alias": "b86ce9f2-e604-423f-8d66-20f094ba6e28",
+      "labels": [
+        "Customer"
+      ],
+      "properties": [
+        {
+          "name": "customerIDK",
+          "type": "INT"
+        },
+        {
+          "name": "firstName",
+          "type": "STRING"
+        },
+        {
+          "name": "fullName",
+          "type": "STRING"
+        },
+        {
+          "name": "lastName",
+          "type": "STRING"
+        }
+      ]
+    },
+    {
+      "primaryKeyProperties": [
+        "employeeIDK"
+      ],
+      "alias": "b7bd5a4a-74d8-47e4-a8be-ade2869e39b8",
+      "labels": [
+        "Employee"
+      ],
+      "properties": [
+        {
+          "name": "employeeIDK",
+          "type": "INT"
+        },
+        {
+          "name": "country",
+          "type": "STRING"
+        },
+        {
+          "name": "employeeFullName",
+          "type": "STRING"
+        },
+        {
+          "name": "gender",
+          "type": "STRING"
+        },
+        {
+          "name": "group",
+          "type": "STRING"
+        },
+        {
+          "name": "jobTitle",
+          "type": "STRING"
+        },
+        {
+          "name": "managerID",
+          "type": "STRING"
+        },
+        {
+          "name": "maritalStatus",
+          "type": "STRING"
+        },
+        {
+          "name": "organizationLevel",
+          "type": "INT"
+        },
+        {
+          "name": "territory",
+          "type": "STRING"
+        }
+      ]
+    },
+    {
+      "primaryKeyProperties": [
+        "salesOrderDetailIDK"
+      ],
+      "alias": "4db06b5d-031f-4f2d-a2d1-c0e263a6e492",
+      "labels": [
+        "Order"
+      ],
+      "properties": [
+        {
+          "name": "salesOrderDetailIDK",
+          "type": "INT"
+        },
+        {
+          "name": "customerIDFK",
+          "type": "INT"
+        },
+        {
+          "name": "dueDate",
+          "type": "STRING"
+        },
+        {
+          "name": "employeeIDFK",
+          "type": "INT"
+        },
+        {
+          "name": "freight",
+          "type": "FLOAT"
+        },
+        {
+          "name": "lineTotal",
+          "type": "FLOAT"
+        },
+        {
+          "name": "orderDate",
+          "type": "STRING"
+        },
+        {
+          "name": "orderQty",
+          "type": "INT"
+        },
+        {
+          "name": "productIDFK",
+          "type": "INT"
+        },
+        {
+          "name": "salesOrderID",
+          "type": "INT"
+        },
+        {
+          "name": "shipDate",
+          "type": "STRING"
+        },
+        {
+          "name": "subTotal",
+          "type": "FLOAT"
+        },
+        {
+          "name": "taxAmt",
+          "type": "FLOAT"
+        },
+        {
+          "name": "totalDue",
+          "type": "FLOAT"
+        },
+        {
+          "name": "unitPrice",
+          "type": "FLOAT"
+        },
+        {
+          "name": "unitPriceDiscount",
+          "type": "FLOAT"
+        }
+      ]
+    },
+    {
+      "primaryKeyProperties": [
+        "categoryIDK"
+      ],
+      "alias": "e24918ec-c5c8-45fc-bc7e-36fc21da7909",
+      "labels": [
+        "ProductCategory"
+      ],
+      "properties": [
+        {
+          "name": "categoryIDK",
+          "type": "INT"
+        },
+        {
+          "name": "categoryName",
+          "type": "STRING"
+        }
+      ]
+    },
+    {
+      "primaryKeyProperties": [
+        "productIDK"
+      ],
+      "alias": "7bab01c4-0f50-4182-94f1-c423c526b2b6",
+      "labels": [
+        "Product"
+      ],
+      "properties": [
+        {
+          "name": "productIDK",
+          "type": "INT"
+        },
+        {
+          "name": "listPrice",
+          "type": "FLOAT"
+        },
+        {
+          "name": "makeFlag",
+          "type": "INT"
+        },
+        {
+          "name": "modelName",
+          "type": "STRING"
+        },
+        {
+          "name": "productName",
+          "type": "STRING"
+        },
+        {
+          "name": "productNumber",
+          "type": "STRING"
+        },
+        {
+          "name": "standardCost",
+          "type": "FLOAT"
+        },
+        {
+          "name": "subCategoryIDFK",
+          "type": "INT"
+        }
+      ]
+    },
+    {
+      "primaryKeyProperties": [
+        "subCategoryIDK"
+      ],
+      "alias": "62a4851a-26d9-4298-bf79-573eb2f8a86f",
+      "labels": [
+        "ProductSubcategory"
+      ],
+      "properties": [
+        {
+          "name": "subCategoryIDK",
+          "type": "INT"
+        },
+        {
+          "name": "categoryIDFK",
+          "type": "INT"
+        },
+        {
+          "name": "subCategoryName",
+          "type": "STRING"
+        }
+      ]
+    },
+    {
+      "primaryKeyProperties": [
+        "productIDFK"
+      ],
+      "alias": "cd6ef2ca-f0a4-4937-ad3f-788f37511da0",
+      "labels": [
+        "VendorProduct"
+      ],
+      "properties": [
+        {
+          "name": "productIDFK",
+          "type": "INT"
+        },
+        {
+          "name": "vendorIDFK",
+          "type": "INT"
+        }
+      ]
+    },
+    {
+      "primaryKeyProperties": [
+        "vendorIDK"
+      ],
+      "alias": "64a79e92-096b-47d8-8e92-3d836e2b260c",
+      "labels": [
+        "Vendor"
+      ],
+      "properties": [
+        {
+          "name": "vendorIDK",
+          "type": "INT"
+        },
+        {
+          "name": "accountNumber",
+          "type": "STRING"
+        },
+        {
+          "name": "activeFlag",
+          "type": "INT"
+        },
+        {
+          "name": "creditRating",
+          "type": "INT"
+        },
+        {
+          "name": "vendorName",
+          "type": "STRING"
+        }
+      ]
+    }
+  ],
+  "edgeTypes": [
+    {
+      "alias": "e56f3f3f-f590-4302-b880-cf1ec5a39000",
+      "sourceNodeType": {
+        "alias": "b7bd5a4a-74d8-47e4-a8be-ade2869e39b8"
+      },
+      "labels": [
+        "sells"
+      ],
+      "destinationNodeType": {
+        "alias": "4db06b5d-031f-4f2d-a2d1-c0e263a6e492"
+      },
+      "properties": [
+        {
+          "name": "employeeIDFK",
+          "type": "INT"
+        },
+        {
+          "name": "salesOrderDetailIDK",
+          "type": "INT"
+        }
+      ]
+    },
+    {
+      "alias": "4bf9804c-0b46-4069-9fa9-6d237c6fe4af",
+      "sourceNodeType": {
+        "alias": "b86ce9f2-e604-423f-8d66-20f094ba6e28"
+      },
+      "labels": [
+        "purchases"
+      ],
+      "destinationNodeType": {
+        "alias": "4db06b5d-031f-4f2d-a2d1-c0e263a6e492"
+      },
+      "properties": [
+        {
+          "name": "customerIDFK",
+          "type": "INT"
+        },
+        {
+          "name": "salesOrderDetailIDK",
+          "type": "INT"
+        }
+      ]
+    },
+    {
+      "alias": "4512a124-6271-4611-b16c-c4225657f3c2",
+      "sourceNodeType": {
+        "alias": "4db06b5d-031f-4f2d-a2d1-c0e263a6e492"
+      },
+      "labels": [
+        "contains"
+      ],
+      "destinationNodeType": {
+        "alias": "7bab01c4-0f50-4182-94f1-c423c526b2b6"
+      },
+      "properties": [
+        {
+          "name": "salesOrderDetailIDK",
+          "type": "INT"
+        },
+        {
+          "name": "productIDFK",
+          "type": "INT"
+        }
+      ]
+    },
+    {
+      "alias": "bf6e416c-255c-4dad-b39a-3992e8d5f9e3",
+      "sourceNodeType": {
+        "alias": "7bab01c4-0f50-4182-94f1-c423c526b2b6"
+      },
+      "labels": [
+        "isOfType"
+      ],
+      "destinationNodeType": {
+        "alias": "62a4851a-26d9-4298-bf79-573eb2f8a86f"
+      },
+      "properties": [
+        {
+          "name": "productIDK",
+          "type": "INT"
+        },
+        {
+          "name": "subCategoryIDFK",
+          "type": "INT"
+        }
+      ]
+    },
+    {
+      "alias": "a0117922-a36d-4b9e-bc14-dfcbbf684f16",
+      "sourceNodeType": {
+        "alias": "62a4851a-26d9-4298-bf79-573eb2f8a86f"
+      },
+      "labels": [
+        "belongsTo"
+      ],
+      "destinationNodeType": {
+        "alias": "e24918ec-c5c8-45fc-bc7e-36fc21da7909"
+      },
+      "properties": [
+        {
+          "name": "subCategoryIDK",
+          "type": "INT"
+        },
+        {
+          "name": "categoryIDFK",
+          "type": "INT"
+        }
+      ]
+    },
+    {
+      "alias": "98a6220b-2d85-441b-a4ea-b4495fdb8cdc",
+      "sourceNodeType": {
+        "alias": "64a79e92-096b-47d8-8e92-3d836e2b260c"
+      },
+      "labels": [
+        "produces"
+      ],
+      "destinationNodeType": {
+        "alias": "7bab01c4-0f50-4182-94f1-c423c526b2b6"
+      },
+      "properties": [
+        {
+          "name": "vendorIDFK",
+          "type": "INT"
+        },
+        {
+          "name": "productIDFK",
+          "type": "INT"
+        }
+      ]
+    }
+  ]
+}
