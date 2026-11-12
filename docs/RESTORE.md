@@ -4,181 +4,640 @@ This document describes how to safely restore **Fabric Supply Chain Graph Analyt
 
 ## Scope
 
-Git restores supported Fabric item definitions only. It does not restore:
+Git restores supported Microsoft Fabric item definitions and project metadata.
+
+Git does not restore:
 
 - OneLake table data;
 - uploaded source files;
-- execution or deployment history;
+- Graph materialized data;
+- query execution history;
+- deployment history;
 - credentials, tokens, or connections;
 - workspace roles and permissions;
 - capacity assignments;
-- environment-specific object identifiers.
+- environment-specific Fabric object identifiers.
+
+The restored workspace is not considered operational until source data, Graph data, dependencies, and validation results have been verified.
 
 ## Prerequisites
 
-- Microsoft Fabric capacity or active Fabric Trial.
-- A Fabric region where Graph is available.
-- Permission to create and administer Fabric workspaces.
-- GitHub access to this repository.
-- A fine-grained GitHub personal access token scoped to this repository with `Contents: Read and write`.
-- The official Microsoft Adventure Works Graph sample archive.
+- Microsoft Fabric capacity or an active Fabric Trial;
+- a Fabric region where Graph is available;
+- permission to create and administer Fabric workspaces;
+- permission to use Fabric Git integration;
+- permission to use Fabric Deployment Pipelines;
+- access to this GitHub repository;
+- repository-scoped GitHub authentication;
+- the official Microsoft Adventure Works Graph sample archive.
 
-## Repository contents restored by Git
+Do not store credentials, token values, tenant identifiers, or private connection information in repository files.
 
-- `SupplyChainGraph.GraphModel`
-- `SupplyChainGraphQueries.GraphQuerySet`
-- `SupplyChainLakehouse.Lakehouse`
+## Repository Items Restored by Git
 
-## Safe restoration procedure
+The repository contains definitions for:
 
-### 1. Create the Development workspace
+```text
+SupplyChainLakehouse.Lakehouse
+SupplyChainGraph.GraphModel
+SupplyChainGraphQueries.GraphQuerySet
+```
+
+The repository also contains:
+
+```text
+docs/OPERATIONS.md
+docs/RESTORE.md
+docs/VALIDATION.sql
+docs/screenshots/
+README.md
+LICENSE
+```
+
+## Restoration Order
+
+Use the following order:
+
+```text
+Development workspace
+→ Git synchronization
+→ Lakehouse source data
+→ Source validation
+→ Graph Model connection and load
+→ Graph QuerySet dependency
+→ GQL validation
+→ Test workspace
+→ Deployment Pipeline
+→ Test data and Graph validation
+```
+
+Do not run Graph queries before the Graph data load has completed.
+
+# Development Restoration
+
+## 1. Create the Development Workspace
 
 Create an empty Fabric workspace named:
 
-`Fabric Supply Chain Graph Analytics - Dev`
+```text
+Fabric Supply Chain Graph Analytics - Dev
+```
 
-Assign the workspace to an eligible Fabric capacity or Fabric Trial.
+Assign the workspace to eligible Microsoft Fabric capacity or Fabric Trial capacity.
 
-### 2. Connect the workspace to GitHub
+Limit workspace access according to the principle of least privilege.
+
+For the portfolio implementation, the validated access model contains one project administrator and no additional users or groups.
+
+## 2. Connect the Workspace to GitHub
 
 Open:
 
-`Workspace settings -> Git integration -> GitHub`
+```text
+Workspace settings
+→ Git integration
+→ GitHub
+```
 
 Configure:
 
-- Repository: `fabric-supply-chain-graph-analytics`
-- Branch: `main`
-- Git folder: empty
+```text
+Repository: fabric-supply-chain-graph-analytics
+Branch: main
+Git folder: /
+```
 
-Select the direction that updates the empty workspace from GitHub.
+Update the empty workspace from GitHub.
 
-### 3. Verify restored item definitions
+Do not initialize an unrelated workspace state over the repository.
 
-Confirm that the workspace contains:
+## 3. Verify Restored Fabric Items
 
-- `SupplyChainLakehouse`
-- `SupplyChainGraph`
-- `SupplyChainGraphQueries`
+Confirm that the Development workspace contains:
 
-Do not assume that data was restored. Git contains definitions, not OneLake data.
+```text
+SupplyChainLakehouse
+SupplyChainGraph
+SupplyChainGraphQueries
+```
 
-### 4. Restore source files
+The Lakehouse SQL analytics endpoint is created as a dependent Lakehouse component and is not a separate project artifact.
+
+Confirm that Source Control contains no unexpected changes.
+
+Opening or navigating the Graph Model can modify layout metadata such as:
+
+```text
+modelLayout.pan.x
+modelLayout.pan.y
+modelLayout.zoomLevel
+```
+
+Do not commit changes that contain only Graph canvas position or zoom metadata.
+
+## 4. Restore the Source Files
 
 Download and extract the official Adventure Works Graph sample.
 
-Upload the extracted source folder to the `Files` section of `SupplyChainLakehouse`.
+Upload the extracted source folder to the `Files` area of:
 
-Load the following folders as Parquet tables in schema `dbo`:
+```text
+SupplyChainLakehouse
+```
 
-- `adventureworks_customers`
-- `adventureworks_employees`
-- `adventureworks_orders`
-- `adventureworks_productcategories`
-- `adventureworks_products`
-- `adventureworks_productsubcategories`
-- `adventureworks_vendorproduct`
-- `adventureworks_vendors`
+Load the following datasets as Delta tables in schema `dbo`:
 
-### 5. Validate Lakehouse data
+```text
+adventureworks_customers
+adventureworks_employees
+adventureworks_orders
+adventureworks_productcategories
+adventureworks_products
+adventureworks_productsubcategories
+adventureworks_vendorproduct
+adventureworks_vendors
+```
 
-Run `docs/VALIDATION.sql` against the Lakehouse SQL analytics endpoint.
+Git synchronization does not restore the contents of these tables.
 
-Required baseline results:
+## 5. Validate the Lakehouse Source Data
 
-- 8 non-empty source tables;
-- 60,919 rows in `adventureworks_orders`;
-- 460 rows in `adventureworks_vendorproduct`;
-- 103 fully matched vendor-product relationships;
-- 357 vendor-product rows without a matching Product node source row.
+Run:
 
-Stop restoration if these values differ unexpectedly. Determine whether the sample dataset changed before modifying the graph.
+```text
+docs/VALIDATION.sql
+```
 
-### 6. Reconnect Graph data if required
+against the `SupplyChainLakehouse` SQL analytics endpoint.
 
-Open `SupplyChainGraph` and verify that all eight Lakehouse tables are available in the Data pane.
+The script is read-only and validates:
 
-If the restored Graph Model does not have an active data connection:
+- all eight source-table row counts;
+- null graph keys;
+- duplicate graph keys;
+- the composite Vendor-Product source grain;
+- graph endpoint coverage;
+- customer, employee, product, subcategory, and category relationships;
+- the actual grain of the `Order` node source;
+- repeated order-header values;
+- correct order-level monetary totals.
 
-1. Select `Get data`.
-2. Select `SupplyChainLakehouse`.
-3. Add all eight tables.
-4. Verify the existing node and edge mappings before saving.
+### Validated source baseline
 
-Do not recreate nodes or edges unless the restored definitions are missing.
+| Source table | Expected rows |
+|---|---:|
+| `adventureworks_customers` | 635 |
+| `adventureworks_employees` | 17 |
+| `adventureworks_orders` | 60,919 |
+| `adventureworks_productcategories` | 4 |
+| `adventureworks_products` | 295 |
+| `adventureworks_productsubcategories` | 37 |
+| `adventureworks_vendorproduct` | 460 |
+| `adventureworks_vendors` | 104 |
 
-### 7. Reload the Graph Model
+Expected graph-key results:
+
+```text
+Null graph keys: 0
+Duplicate graph keys: 0
+Duplicate Vendor-Product pairs: 0
+```
+
+Stop restoration if the source values differ unexpectedly.
+
+Determine whether:
+
+- the Microsoft sample changed;
+- the wrong source archive was loaded;
+- only part of a source folder was loaded;
+- a table was loaded more than once;
+- the schema or key columns changed.
+
+Do not modify the Graph Model to conceal unexpected source differences.
+
+## 6. Validate the Vendor-Product Source Limitation
+
+Expected values:
+
+```text
+Vendor-Product source rows: 460
+Distinct Vendor-Product pairs: 460
+Rows with a matching Vendor: 460
+Rows with a matching Product: 103
+Fully matched Vendor-to-Product relationships: 103
+Missing Vendor matches: 0
+Missing Product matches: 357
+Distinct supplied products: 83
+```
+
+The 357 missing Product matches are a known source-data limitation.
+
+Do not create artificial Product nodes to force all 460 source pairs into the graph.
+
+The Graph should materialize only the 103 relationships for which both endpoint nodes exist.
+
+## 7. Reconnect Graph Data if Required
+
+Open:
+
+```text
+SupplyChainGraph
+```
+
+Verify that all eight Lakehouse tables are available in the Data pane.
+
+If the restored Graph Model does not have an active Lakehouse connection:
+
+1. select `Get data`;
+2. select `SupplyChainLakehouse`;
+3. add all eight tables;
+4. verify the existing node definitions;
+5. verify the existing edge definitions;
+6. save only after confirming that the restored mappings are correct.
+
+Do not recreate nodes or edges if the Git-restored definitions are already present.
+
+## 8. Verify Graph Topology
+
+The Graph Model must contain eight node types:
+
+```text
+Customer
+Employee
+Order
+ProductCategory
+Product
+ProductSubcategory
+VendorProduct
+Vendor
+```
+
+The Graph Model must contain six edge types:
+
+```text
+Employee → sells → Order
+Customer → purchases → Order
+Order → contains → Product
+Product → isOfType → ProductSubcategory
+ProductSubcategory → belongsTo → ProductCategory
+Vendor → produces → Product
+```
+
+The `VendorProduct` node is present but is not connected by an edge in the validated topology.
+
+The source table is used to derive the direct relationship:
+
+```text
+Vendor → produces → Product
+```
+
+Do not remove the `VendorProduct` node during restoration without a separate model-design decision and a new validated release.
+
+## 9. Understand the `Order` Node Grain
+
+The node labeled `Order` uses:
+
+```text
+SalesOrderDetailID_K
+```
+
+as its unique key.
+
+Therefore:
+
+```text
+One Order node = one sales-order detail line
+```
+
+The node does not represent a distinct sales-order header.
+
+Validated grain:
+
+```text
+Order detail nodes: 60,919
+Distinct SalesOrderID values: 3,806
+Multi-line orders: 3,218
+Maximum lines per order: 72
+```
+
+The following properties are line-level or compatible with line-level analysis:
+
+```text
+lineTotal
+unitPrice
+unitPriceDiscount
+```
+
+The following properties originate from the order header and are repeated for every detail line belonging to the same `SalesOrderID`:
+
+```text
+freight
+subTotal
+taxAmt
+totalDue
+dueDate
+shipDate
+```
+
+Do not calculate simple sums of `freight`, `subTotal`, `taxAmt`, or `totalDue` across all `Order` nodes.
+
+Deduplicate or group by `salesOrderID` before aggregating header-level values.
+
+Validated monetary comparison:
+
+| Metric | Naive line-level sum | Correct order-level sum |
+|---|---:|---:|
+| Freight | 77,209,717.21 | 2,449,462.58 |
+| SubTotal | 2,537,243,275.76 | 80,487,704.18 |
+| Tax | 247,071,094.63 | 7,838,280.23 |
+| Total Due | 2,861,524,087.61 | 90,775,446.99 |
+
+Expected orders with inconsistent repeated header values:
+
+```text
+0
+```
+
+## 10. Load the Graph Model
 
 Open `SupplyChainGraph` and confirm:
 
-- Nodes: 8
-- Edges: 6
+```text
+Node types: 8
+Edge types: 6
+```
 
-Select `Save` once and wait for `Data load completed`.
+Save the Graph Model only when necessary and wait for:
 
-Do not run queries while the graph is loading.
+```text
+Data load completed
+```
 
-### 8. Validate Graph results
+Do not run GQL queries while Graph data is loading.
 
-Run these saved queries in `SupplyChainGraphQueries`:
+If saving creates only pan or zoom changes in Source Control, review and undo those nonfunctional changes instead of committing them.
 
-- `ValidateOrderCount` -> 60,919
-- `ValidatePurchaseEdges` -> 60,919
-- `ValidateContainsEdges` -> 60,919
-- `ValidateProducesEdges` -> 103
-- `ValidateSuppliedProducts` -> 83
+## 11. Verify the Graph QuerySet Dependency
 
-Also run:
+Open:
 
-- `CustomerPurchaseHistory`
-- `TopClothingVendors`
-- `MultiVendorProducts`
+```text
+SupplyChainGraphQueries
+```
 
-Confirm that each query is linked to the restored `SupplyChainGraph` object.
+Confirm that the QuerySet is connected to the `SupplyChainGraph` object in the same Development workspace.
 
-### 9. Restore the Test environment
+A Graph QuerySet stores an environment-specific Graph dependency identifier.
 
-Create an empty workspace named:
+Do not manually copy an object identifier from another workspace.
 
-`Fabric Supply Chain Graph Analytics - Test`
+## 12. Validate Development GQL Results
 
-Create or reopen the two-stage Deployment Pipeline:
+Run the saved validation queries.
 
-1. Development
-2. Test
+### ValidateOrderCount
 
-Assign the Development and Test workspaces and deploy:
+Expected result:
 
-- `SupplyChainLakehouse`
-- `SupplyChainGraph`
-- `SupplyChainGraphQueries`
+```text
+num_order_lines = 60919
+num_orders = 3806
+```
 
-### 10. Validate Test
+### ValidatePurchaseEdges
 
-Run in the Test QuerySet:
+Expected result:
 
-- `ValidateOrderCount` -> 60,919
-- `ValidateProducesEdges` -> 103
-- `ValidateSuppliedProducts` -> 83
+```text
+purchase_edge_count = 60919
+```
 
-A different Graph dependency object ID between Development and Test is expected because each workspace contains its own Graph Model object.
+### ValidateContainsEdges
 
-## Failure handling
+Expected result:
 
-- Do not repeat a failed load or deployment before identifying its cause.
-- Do not delete a working item to resolve an environment-specific dependency ID.
-- Do not assume a successful preview means data was materialized.
-- Validate target objects with measurable queries.
-- Never commit credentials or token values.
+```text
+contains_edge_count = 60919
+```
 
-## Recovery completion criteria
+### ValidateProducesEdges
+
+Expected result:
+
+```text
+produces_edge_count = 103
+```
+
+### ValidateSuppliedProducts
+
+Expected result:
+
+```text
+supplied_products = 83
+```
+
+Also execute:
+
+```text
+CustomerPurchaseHistory
+TopClothingVendors
+MultiVendorProducts
+```
+
+### TopClothingVendors validation
+
+The result must contain:
+
+```text
+vendorName
+subCategoryName
+num_products
+num_orders
+num_order_lines
+```
+
+For every row:
+
+```text
+num_orders <= num_order_lines
+```
+
+The query must count distinct `salesOrderID` values as orders and must not treat the 60,919 line-level nodes as 60,919 distinct orders.
+
+### MultiVendorProducts validation
+
+The result must contain:
+
+```text
+productName
+vendor_count
+```
+
+The validated results contain products with:
+
+```text
+vendor_count = 2
+```
+
+# Test Restoration
+
+## 13. Create the Test Workspace
+
+Create an empty Fabric workspace named:
+
+```text
+Fabric Supply Chain Graph Analytics - Test
+```
+
+Assign the workspace to eligible capacity.
+
+Apply the required access model separately from Development.
+
+Git and Deployment Pipelines do not restore workspace roles.
+
+## 14. Configure the Deployment Pipeline
+
+Create or reopen the Deployment Pipeline:
+
+```text
+Fabric Supply Chain Graph Analytics
+```
+
+Use two stages:
+
+```text
+Development → Test
+```
+
+Assign:
+
+- `Fabric Supply Chain Graph Analytics - Dev` to Development;
+- `Fabric Supply Chain Graph Analytics - Test` to Test.
+
+## 15. Deploy the Fabric Items
+
+Review the comparison before deployment.
+
+The initial deployment can include:
+
+```text
+SupplyChainLakehouse
+SupplyChainGraph
+SupplyChainGraphQueries
+```
+
+Only metadata is deployed. OneLake table data is not copied to Test.
+
+After deployment:
+
+1. restore or verify the Test Lakehouse source data;
+2. verify all eight Test tables;
+3. validate Test row counts;
+4. verify the Test Graph data connection;
+5. reload the Test Graph when required;
+6. verify the Test QuerySet dependency.
+
+## 16. Preserve the Environment-Specific QuerySet Dependency
+
+Development and Test contain separate `SupplyChainGraph` objects.
+
+Therefore, `SupplyChainGraphQueries` can remain marked:
+
+```text
+Different from source
+```
+
+when the only difference is the environment-specific Graph dependency identifier, such as:
+
+```text
+ArtifactObjectId
+modelReference.itemId
+workspaceId
+```
+
+This difference is expected.
+
+Do not repeatedly deploy the QuerySet only to make the comparison display `Same as source`.
+
+Do not overwrite a working Test dependency with the Development Graph object identifier.
+
+After deploying a deliberate QuerySet code change, verify that the Test QuerySet still executes against the local Test Graph Model.
+
+## 17. Validate Test
+
+Run the changed or critical Test queries.
+
+### ValidateOrderCount
+
+Expected:
+
+```text
+num_order_lines = 60919
+num_orders = 3806
+```
+
+### ValidateProducesEdges
+
+Expected:
+
+```text
+produces_edge_count = 103
+```
+
+### ValidateSuppliedProducts
+
+Expected:
+
+```text
+supplied_products = 83
+```
+
+### TopClothingVendors
+
+Confirm:
+
+- five result rows;
+- columns `vendorName`, `subCategoryName`, `num_products`, `num_orders`, and `num_order_lines`;
+- `num_orders <= num_order_lines` in every row.
+
+### MultiVendorProducts
+
+Confirm:
+
+- columns `productName` and `vendor_count`;
+- returned products have more than one supplier;
+- the validated result uses `vendor_count = 2`.
+
+A successful query execution confirms that the QuerySet is connected to a working Graph Model in the Test workspace.
+
+# Failure Handling
+
+- Do not repeat a failed Graph load or deployment before identifying the cause.
+- Do not delete a working item to resolve an environment-specific dependency identifier.
+- Do not manually copy Development object identifiers into Test.
+- Do not assume a successful metadata deployment restored OneLake data.
+- Do not assume a successful Graph preview means the complete graph was materialized.
+- Do not commit Graph canvas pan or zoom changes as functional updates.
+- Do not create artificial Product nodes to hide the 357 missing Product matches.
+- Do not aggregate repeated order-header values at the line-node grain.
+- Validate target objects through measurable SQL and GQL queries.
+- Never commit credentials, tokens, tenant identifiers, private connection details, or diagnostic logs.
+
+# Recovery Completion Criteria
 
 Restoration is complete only when:
 
-- all three Fabric items exist;
-- all eight source tables are non-empty;
-- Graph reports 8 nodes and 6 edge types;
-- the Graph data load completes;
-- validation counts match the documented baseline;
-- Test deployment succeeds;
-- Test validation returns the expected values.
+- all three Fabric items exist in Development;
+- all eight source tables are present and non-empty;
+- source row counts match the documented baseline;
+- all graph-source keys contain zero nulls and zero duplicates;
+- the Graph Model contains eight node types and six edge types;
+- the Graph data load completes successfully;
+- Development GQL validation matches the documented baseline;
+- the Test workspace and Deployment Pipeline are configured;
+- the required item definitions are deployed successfully;
+- Test contains or can access the required source data;
+- the Test Graph data load completes;
+- the Test QuerySet points to the local Test Graph Model;
+- Test validation returns the expected results;
+- Source Control contains no unintended changes.
