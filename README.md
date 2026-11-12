@@ -664,4 +664,5 @@ The project uses Microsoft's Adventure Works dataset prepared for the Fabric Gra
 
 ## License
 
-This project is licensed under the LICENSE.
+This project is licensed under the [MIT License](LICENSE).
+
