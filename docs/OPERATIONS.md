@@ -1,199 +1,728 @@
 # Operations Guide
 
-This document defines the operating procedure for **Fabric Supply Chain Graph Analytics**.
+This document defines the operating, validation, source-control, deployment, monitoring, and troubleshooting procedures for **Fabric Supply Chain Graph Analytics**.
 
 ## Components
 
-- Development workspace: `Fabric Supply Chain Graph Analytics - Dev`
-- Test workspace: `Fabric Supply Chain Graph Analytics - Test`
-- Lakehouse: `SupplyChainLakehouse`
-- Graph Model: `SupplyChainGraph`
-- Graph QuerySet: `SupplyChainGraphQueries`
-- Git branch: `main`
-- Deployment stages: Development and Test
+| Component | Name |
+|---|---|
+| Development workspace | `Fabric Supply Chain Graph Analytics - Dev` |
+| Test workspace | `Fabric Supply Chain Graph Analytics - Test` |
+| Lakehouse | `SupplyChainLakehouse` |
+| Graph Model | `SupplyChainGraph` |
+| Graph QuerySet | `SupplyChainGraphQueries` |
+| Git repository | `fabric-supply-chain-graph-analytics` |
+| Git branch | `main` |
+| Git folder | `/` |
+| Deployment Pipeline | `Fabric Supply Chain Graph Analytics` |
+| Deployment stages | `Development → Test` |
 
-## Normal operating sequence
+## Normal Operating Sequence
+
+Use the following sequence for a source-data or Graph Model change:
 
 1. Load or refresh source data in `SupplyChainLakehouse`.
-2. Validate source tables with `docs/VALIDATION.sql`.
-3. Open `SupplyChainGraph` and select `Save` to reload graph data.
-4. Wait for `Data load completed`.
-5. Run all saved validation queries in Development.
-6. Commit supported item-definition changes to GitHub.
-7. Review the Deployment Pipeline comparison.
-8. Deploy the three Fabric items to Test.
-9. Run the required Test queries.
-10. Record evidence only after measurable validation succeeds.
+2. Run `docs/VALIDATION.sql`.
+3. Stop if source validation does not match the expected baseline.
+4. Verify that Graph node and edge mappings remain compatible.
+5. Save `SupplyChainGraph` once when a graph reload is required.
+6. Wait for `Data load completed`.
+7. Run the required Development GQL validation suite.
+8. Review Source Control.
+9. Remove nonfunctional layout-only changes.
+10. Commit only intentional functional changes.
+11. Confirm that Source Control contains no pending changes or updates.
+12. Compare Development and Test in the Deployment Pipeline.
+13. Select only the reviewed items that must be deployed.
+14. Deploy once.
+15. Verify environment-specific dependencies in Test.
+16. Run the required Test validation queries.
+17. Record evidence only after measurable validation succeeds.
 
-## Source-data refresh
+Do not repeatedly save, reload, commit, or deploy while an earlier operation is still running.
 
-The Graph Model does not apply structural or source-data changes automatically.
+## Source-Data Refresh
+
+The Graph Model does not automatically materialize every Lakehouse source-data change.
 
 After changing Lakehouse data:
 
-1. Validate the new source state.
-2. Confirm that key columns and data types remain compatible.
-3. Open `SupplyChainGraph`.
-4. Select `Save` once.
-5. Wait for the graph reload to finish.
-6. Run the validation query suite.
+1. confirm that all eight source tables exist;
+2. run `docs/VALIDATION.sql`;
+3. verify row counts, keys, and graph endpoint coverage;
+4. confirm that source column names and data types remain compatible;
+5. open `SupplyChainGraph`;
+6. verify the existing node and edge mappings;
+7. select `Save` once;
+8. wait for `Data load completed`;
+9. run the Development GQL validation suite.
 
-Do not repeatedly select `Save` while a graph load is running.
+Do not run GQL validation while Graph data is loading.
 
-## Required Development validation
+Do not repeatedly select `Save`.
 
-Run these saved GQL queries:
+Do not modify the Graph Model to conceal an unexpected source-data difference.
 
-| Query | Required result |
+## Source Validation Baseline
+
+The validated Lakehouse contains eight Delta tables.
+
+| Source table | Expected rows |
 |---|---:|
-| `ValidateOrderCount` | 60,919 |
-| `ValidatePurchaseEdges` | 60,919 |
-| `ValidateContainsEdges` | 60,919 |
-| `ValidateProducesEdges` | 103 |
-| `ValidateSuppliedProducts` | 83 |
+| `adventureworks_customers` | 635 |
+| `adventureworks_employees` | 17 |
+| `adventureworks_orders` | 60,919 |
+| `adventureworks_productcategories` | 4 |
+| `adventureworks_products` | 295 |
+| `adventureworks_productsubcategories` | 37 |
+| `adventureworks_vendorproduct` | 460 |
+| `adventureworks_vendors` | 104 |
 
-Also verify that:
+Required key-quality results:
 
-- `CustomerPurchaseHistory` returns `Carla Adams` with related orders and products;
-- `TopClothingVendors` returns five ranked rows;
-- `MultiVendorProducts` returns products with `vendor_count > 1`.
+```text
+Null graph keys: 0
+Duplicate graph keys: 0
+Duplicate Vendor-Product pairs: 0
+```
 
-## Known data-quality condition
+Run the complete read-only validation from:
 
-`adventureworks_vendorproduct` contains:
+```text
+docs/VALIDATION.sql
+```
 
-- 460 distinct vendor-product source pairs;
-- 460 valid vendor references;
-- 103 valid product references;
-- 103 fully matched Graph edges;
-- 357 product references without a matching Product source row.
+## Graph Topology Baseline
 
-This is a documented sample-data condition. Do not manufacture missing Product nodes or suppress the validation result.
+The Graph Model contains eight node types:
 
-## Git workflow
+```text
+Customer
+Employee
+Order
+ProductCategory
+Product
+ProductSubcategory
+VendorProduct
+Vendor
+```
 
-### Before a commit
+The Graph Model contains six edge types:
 
-1. Confirm the workspace is connected to the intended repository and `main` branch.
-2. Review every changed Fabric item.
-3. Check screenshots and definitions for secrets or private data.
-4. Confirm that no token, password, or credential is present.
-5. Commit only intentional changes.
+```text
+Employee → sells → Order
+Customer → purchases → Order
+Order → contains → Product
+Product → isOfType → ProductSubcategory
+ProductSubcategory → belongsTo → ProductCategory
+Vendor → produces → Product
+```
 
-### What Git stores
+The `VendorProduct` node is present but isolated in the validated topology.
 
-Git stores supported Fabric item definitions. Git does not store:
+The `adventureworks_vendorproduct` source table is used to derive:
+
+```text
+Vendor → produces → Product
+```
+
+Do not remove or redesign `VendorProduct` without a separate model decision, complete validation, and a new versioned release.
+
+## Known Vendor-Product Data-Quality Condition
+
+The source contains:
+
+```text
+Vendor-Product source rows: 460
+Distinct Vendor-Product pairs: 460
+Matched Vendor references: 460
+Matched Product references: 103
+Fully matched produces relationships: 103
+Missing Vendor matches: 0
+Missing Product matches: 357
+Distinct supplied products: 83
+```
+
+The 357 missing Product matches are a known source-data condition.
+
+Do not:
+
+- create artificial Product nodes;
+- suppress the validation result;
+- report 460 valid `produces` edges;
+- treat the missing endpoints as a Graph loading defect.
+
+The expected number of materialized `produces` edges is:
+
+```text
+103
+```
+
+## Order Node Grain
+
+The Graph node labeled `Order` uses:
+
+```text
+SalesOrderDetailID_K
+```
+
+as its unique key.
+
+The actual grain is:
+
+```text
+One Order node = one sales-order detail line
+```
+
+The node does not represent one distinct sales-order header.
+
+Validated values:
+
+```text
+Order detail nodes: 60,919
+Distinct SalesOrderID values: 3,806
+Multi-line orders: 3,218
+Maximum lines per order: 72
+```
+
+### Line-compatible properties
+
+The following properties can be analyzed at the node grain:
+
+```text
+lineTotal
+unitPrice
+unitPriceDiscount
+```
+
+### Repeated order-header properties
+
+The following values are repeated across detail lines belonging to the same `salesOrderID`:
+
+```text
+freight
+subTotal
+taxAmt
+totalDue
+dueDate
+shipDate
+```
+
+Do not calculate a simple sum of `freight`, `subTotal`, `taxAmt`, or `totalDue` across all `Order` nodes.
+
+Deduplicate or group by `salesOrderID` before aggregating header-level values.
+
+Validated comparisons:
+
+| Metric | Naive line-level sum | Correct order-level sum |
+|---|---:|---:|
+| Freight | 77,209,717.21 | 2,449,462.58 |
+| SubTotal | 2,537,243,275.76 | 80,487,704.18 |
+| Tax | 247,071,094.63 | 7,838,280.23 |
+| Total Due | 2,861,524,087.61 | 90,775,446.99 |
+
+Expected orders with inconsistent repeated header values:
+
+```text
+0
+```
+
+## Required Development GQL Validation
+
+Run the saved validation queries after a source-data, Graph Model, or QuerySet change.
+
+### ValidateOrderCount
+
+Required result:
+
+```text
+num_order_lines = 60919
+num_orders = 3806
+```
+
+### ValidatePurchaseEdges
+
+Required result:
+
+```text
+purchase_edge_count = 60919
+```
+
+### ValidateContainsEdges
+
+Required result:
+
+```text
+contains_edge_count = 60919
+```
+
+### ValidateProducesEdges
+
+Required result:
+
+```text
+produces_edge_count = 103
+```
+
+### ValidateSuppliedProducts
+
+Required result:
+
+```text
+supplied_products = 83
+```
+
+### CustomerPurchaseHistory
+
+Confirm that the query returns the selected customer and related Order-line and Product data.
+
+Do not interpret each returned `Order` node as a distinct order header.
+
+### TopClothingVendors
+
+The result must contain:
+
+```text
+vendorName
+subCategoryName
+num_products
+num_orders
+num_order_lines
+```
+
+Required rule:
+
+```text
+num_orders <= num_order_lines
+```
+
+The query must:
+
+- count distinct Product nodes;
+- count distinct `salesOrderID` values as orders;
+- count `Order` nodes separately as order lines;
+- avoid summing repeated header-level monetary properties;
+- use deterministic sorting.
+
+### MultiVendorProducts
+
+The result must contain:
+
+```text
+productName
+vendor_count
+```
+
+The query must:
+
+- group by the Product node and product name;
+- count distinct Vendor nodes;
+- filter to `vendor_count > 1`;
+- use deterministic sorting.
+
+The validated result contains products with:
+
+```text
+vendor_count = 2
+```
+
+## Git Workflow
+
+### Before a Commit
+
+1. confirm the workspace is connected to the intended repository;
+2. confirm the branch is `main`;
+3. confirm the Git folder is `/`;
+4. review every changed Fabric item;
+5. inspect the complete exported definition;
+6. verify environment-specific dependency identifiers;
+7. check files and screenshots for secrets or private data;
+8. confirm that no token, password, credential, tenant identifier, or private connection string is present;
+9. commit only intentional changes.
+
+### Graph Model Layout Metadata
+
+Opening or navigating the Graph Model can create changes such as:
+
+```text
+modelLayout.pan.x
+modelLayout.pan.y
+modelLayout.zoomLevel
+```
+
+These changes affect only the Graph canvas position and zoom.
+
+Do not commit a change that contains only layout metadata.
+
+Review the comparison and use `Undo` for layout-only changes.
+
+### QuerySet Export Format
+
+`SupplyChainGraphQueries` can be exported as one long line in:
+
+```text
+exportedDefinition.json
+```
+
+A change to one query can therefore appear as one removed and one added line for the entire file.
+
+Before committing:
+
+- search the exported definition for the modified query names;
+- confirm the intended GQL changes;
+- verify that unchanged queries remain present;
+- verify that the Graph dependency remains correct;
+- confirm that no unrelated model or workspace identifier was introduced.
+
+### Commit Scope
+
+Use small commits that contain one logical change.
+
+Examples:
+
+```text
+Fix graph query grain and deterministic ranking
+Expand source and graph validation coverage
+Harden graph restoration and environment validation
+```
+
+Do not combine:
+
+- GQL logic changes;
+- Graph Model redesign;
+- documentation rewrites;
+- unrelated screenshots;
+- environment-specific identifiers;
+
+unless the changes are inseparable and reviewed together.
+
+### What Git Stores
+
+Git stores supported Fabric item definitions and repository documentation.
+
+Git does not store:
 
 - OneLake table data;
-- execution history;
+- Graph materialized data;
+- query execution history;
 - Deployment Pipeline history;
-- workspace permissions;
+- workspace roles;
+- capacity assignments;
 - credentials or tokens;
 - a complete environment backup.
 
-### Recommended commit prefixes
+## Deployment Procedure
 
-- `feat:` functional addition
-- `fix:` defect correction
-- `docs:` documentation
-- `test:` validation change
-- `chore:` repository maintenance
+### Before Deployment
 
-## Deployment procedure
+1. confirm Development validation succeeded;
+2. confirm the intended commit is on `main`;
+3. confirm Source Control contains no changes or updates;
+4. open the Deployment Pipeline;
+5. compare Development with Test;
+6. identify the exact changed item;
+7. inspect whether differences are functional or environment-specific.
 
-1. Confirm all Development validation checks pass.
-2. Open the Deployment Pipeline.
-3. Compare Development with Test.
-4. Select:
-   - `SupplyChainLakehouse`
-   - `SupplyChainGraph`
-   - `SupplyChainGraphQueries`
-5. Deploy once.
-6. Wait for a successful deployment status.
-7. Do not treat successful deployment alone as end-to-end validation.
-8. Run the required Test queries.
+### Selective Deployment
 
-## Required Test validation
+Do not automatically deploy all three Fabric items.
 
-Minimum post-deployment checks:
+Select only reviewed items.
 
-- `ValidateOrderCount` -> 60,919
-- `ValidateProducesEdges` -> 103
-- `ValidateSuppliedProducts` -> 83
+Examples:
 
-The QuerySet can appear different from Development because the Test QuerySet references the Test Graph Model object ID. This environment-specific dependency is expected when the query definitions remain unchanged and Test validation passes.
+- a QuerySet-only change: deploy `SupplyChainGraphQueries`;
+- a Graph Model change: deploy `SupplyChainGraph` and only required dependent items;
+- a Lakehouse definition change: deploy `SupplyChainLakehouse` and required dependencies after reviewing the effect.
+
+Do not choose `Select related` without reviewing the additional items.
+
+Deployment copies metadata. It does not copy OneLake table data.
+
+### After Deployment
+
+1. wait for a successful deployment status;
+2. verify that the intended number of items was deployed;
+3. do not treat deployment success as end-to-end validation;
+4. open the Test QuerySet;
+5. confirm that the QuerySet uses the local Test Graph Model;
+6. run the changed and critical Test queries;
+7. verify the expected results;
+8. record deployment and validation evidence.
+
+## Environment-Specific QuerySet Dependency
+
+Development and Test contain separate Graph Model objects.
+
+The QuerySet dependency can therefore differ through fields such as:
+
+```text
+ArtifactObjectId
+modelReference.itemId
+workspaceId
+```
+
+The Deployment Pipeline can continue to display:
+
+```text
+Different from source
+```
+
+when the only difference is the local Test Graph dependency.
+
+This is expected.
+
+Do not repeatedly deploy the QuerySet solely to make the comparison display `Same as source`.
+
+Do not replace a working Test Graph dependency with the Development Graph object identifier.
+
+After an intentional QuerySet deployment, validate that the Test QuerySet still runs against the Test Graph Model.
+
+## Required Test Validation
+
+After a Graph Model or initial full deployment, run:
+
+```text
+ValidateOrderCount
+ValidatePurchaseEdges
+ValidateContainsEdges
+ValidateProducesEdges
+ValidateSuppliedProducts
+```
+
+After a QuerySet-only change, run the changed queries and at least one dependency validation query.
+
+For the hardened QuerySet deployment, the required Test checks are:
+
+### ValidateOrderCount
+
+```text
+num_order_lines = 60919
+num_orders = 3806
+```
+
+### TopClothingVendors
+
+Confirm:
+
+- five result rows;
+- columns `vendorName`, `subCategoryName`, `num_products`, `num_orders`, and `num_order_lines`;
+- `num_orders <= num_order_lines` for every row.
+
+### MultiVendorProducts
+
+Confirm:
+
+- columns `productName` and `vendor_count`;
+- all returned products have more than one Vendor;
+- the validated results use `vendor_count = 2`.
+
+Do not edit or save Test queries merely to execute validation.
 
 ## Monitoring
 
 Monitor:
 
-- Graph save and load completion messages;
+- Graph save and data-load completion messages;
+- failed Graph loads;
 - Fabric capacity utilization;
-- failed Git synchronization operations;
+- Git synchronization failures;
+- unexpected Source Control changes;
 - Deployment Pipeline status;
-- validation result changes;
+- changed validation results;
+- Test QuerySet dependency failures;
 - Trial expiration date.
 
-Record the time, affected item, error message, and last successful operation for every incident.
+For every incident, record:
+
+- time;
+- workspace;
+- affected item;
+- operation;
+- error message;
+- activity or correlation identifier, if available;
+- last successful operation;
+- corrective action;
+- validation result after correction.
+
+Do not commit diagnostic logs that contain tenant, workspace, item, session, request, or connection identifiers.
 
 ## Troubleshooting
 
-### Graph query returns an unexpected count
+### Graph Query Returns an Unexpected Count
 
-1. Do not rerun immediately.
-2. Compare the Graph count with the Lakehouse SQL validation.
-3. Check whether both edge endpoint keys match existing node source rows.
-4. Inspect null keys and unmatched foreign keys.
-5. Verify the Graph Model mapping.
-6. Reload only after identifying the cause.
+1. do not rerun immediately;
+2. compare Graph results with `docs/VALIDATION.sql`;
+3. verify source row counts;
+4. inspect null and duplicate keys;
+5. check whether both edge endpoints exist;
+6. confirm node keys and edge mappings;
+7. confirm whether Graph loading completed;
+8. reload only after identifying the cause.
 
-### QuerySet shows no edges in Query Builder
+### ValidateOrderCount Returns 60,919 as num_orders
 
-1. Save the QuerySet.
-2. Refresh the browser once.
-3. Reopen the Components pane.
-4. Confirm that all six edge types appear.
+The alias is incorrect if `count(o)` is labeled as the number of distinct orders.
 
-Do not recreate the Graph Model to resolve a stale Query Builder panel.
+Use:
 
-### Deployment succeeds but QuerySet is different from source
+```gql
+MATCH (o:`Order`)
+RETURN
+    count(o) AS num_order_lines,
+    count(DISTINCT o.salesOrderID) AS num_orders
+```
 
-1. Open Compare.
-2. Check whether only the Graph dependency object ID differs.
-3. Run the Test validation queries.
-4. Do not redeploy if the difference is environment-specific and validation passes.
+Expected:
 
-### Git branch is unavailable
+```text
+num_order_lines = 60919
+num_orders = 3806
+```
 
-A completely empty GitHub repository has no branch. Create an initial non-secret file, such as `README.md`, commit it to `main`, and then reconnect Fabric.
+### A Monetary Total Is Approximately 31 Times Too High
 
-## Security operations
+Check whether an order-header value was summed across line-level `Order` nodes.
 
-- Use a repository-scoped fine-grained token.
-- Grant only `Contents: Read and write` unless additional permissions are demonstrably required.
-- Never place tokens in README files, screenshots, Fabric definitions, or commit messages.
-- Rotate or revoke the token when it expires or is no longer needed.
-- Review every public commit for data disclosure.
+Do not sum:
 
-## Change management
+```text
+freight
+subTotal
+taxAmt
+totalDue
+```
 
-Before changing nodes, edges, keys, properties, or table mappings:
+without grouping or deduplicating by `salesOrderID`.
 
-1. Capture the current validation results.
-2. Confirm the business purpose of the change.
-3. Check key compatibility and data types.
-4. Apply the change in Development only.
-5. Reload the graph.
-6. Run the complete validation suite.
-7. Commit to Git.
-8. Deploy to Test.
-9. Repeat Test validation.
+### QuerySet Shows No Edges in Query Builder
 
-## Project completion evidence
+1. verify that Graph loading completed;
+2. refresh the browser once;
+3. reopen the QuerySet;
+4. reopen the Components pane;
+5. confirm that all six edge types appear;
+6. verify the local Graph dependency.
 
-Retain these screenshots in `docs/screenshots`:
+Do not recreate the Graph Model to fix a stale panel.
 
-- `graph-model-nodes-edges.png`
-- `top-clothing-vendors-results.png`
-- `validate-produces-edges.png`
-- `deployment-history-success.png`
+Do not save an unchanged QuerySet unless a save operation is specifically required.
+
+### Deployment Succeeds but QuerySet Is Different from Source
+
+1. open Compare;
+2. inspect `ArtifactObjectId`, `modelReference.itemId`, and `workspaceId`;
+3. confirm that Test references the Test Graph Model;
+4. run the Test validation queries;
+5. do not redeploy if only the environment-specific dependency differs and validation passes.
+
+### Deployment Completes but Test Queries Fail
+
+1. confirm that Test has the required Lakehouse source data;
+2. verify the Test Graph data connection;
+3. confirm Graph loading completed;
+4. verify the QuerySet dependency;
+5. compare the Test source counts with the baseline;
+6. inspect the changed query definition;
+7. do not delete or recreate working items before locating the failed dependency.
+
+### Source Control Shows Graph Model Changes After Viewing the Model
+
+Open the comparison.
+
+If the differences contain only:
+
+```text
+modelLayout.pan.x
+modelLayout.pan.y
+modelLayout.zoomLevel
+```
+
+use `Undo`.
+
+Do not create a layout-only commit.
+
+### Git Branch Is Unavailable
+
+A completely empty GitHub repository has no branch.
+
+Create a non-secret initial file such as:
+
+```text
+README.md
+```
+
+Commit the file to `main`, then reconnect Fabric.
+
+## Security Operations
+
+- use repository-scoped GitHub authentication;
+- grant only the minimum required repository permissions;
+- never place tokens in documentation, screenshots, Fabric definitions, or commit messages;
+- rotate or revoke credentials when they expire or are no longer required;
+- review public commits for data disclosure;
+- restrict workspace access according to least privilege;
+- verify Development and Test access independently;
+- do not publish tenant, workspace, object, session, request, or connection identifiers.
+
+## Change Management
+
+Before changing nodes, edges, keys, properties, query logic, or table mappings:
+
+1. capture the current validation results;
+2. define the business and technical purpose;
+3. identify the affected grain;
+4. check key compatibility and data types;
+5. apply the change in Development only;
+6. reload Graph data only when required;
+7. run the complete relevant validation suite;
+8. inspect Source Control;
+9. commit only reviewed changes;
+10. confirm a clean synchronized state;
+11. compare Development and Test;
+12. deploy only the required items;
+13. validate Test;
+14. update documentation and evidence;
+15. create a new semantic version when the project milestone warrants a release.
+
+## Project Evidence
+
+Retain the following evidence in:
+
+```text
+docs/screenshots/
+```
+
+Required files:
+
+```text
+graph-model-nodes-edges.png
+top-clothing-vendors-results.png
+validate-produces-edges.png
+deployment-history-success.png
+```
+
+Evidence must not expose:
+
+- tokens;
+- credentials;
+- private connection information;
+- tenant identifiers;
+- personal data that is not required for the project;
+- diagnostic identifiers that are not necessary for public documentation.
+
+## Operational Completion Criteria
+
+A change is operationally complete only when:
+
+- the intended Development change is measurable;
+- source and Graph validation pass;
+- Source Control contains only reviewed changes;
+- the commit exists on `main`;
+- Development is synchronized;
+- the Deployment Pipeline scope contains only intended items;
+- deployment succeeds;
+- environment-specific dependencies remain correct;
+- required Test queries pass;
+- documentation reflects the implemented behavior;
+- public evidence contains no secrets or private information.
